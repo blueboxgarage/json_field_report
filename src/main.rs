@@ -2,32 +2,43 @@ use anyhow::{Context, Result};
 use csv::{ReaderBuilder, StringRecord};
 use serde_json::Value;
 use std::collections::HashSet;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::path::Path;
 
 fn main() -> Result<()> {
     let csv_path = "json_to_compare.csv";
-    process_csv(csv_path)?;
+    let output_path = "field_report.txt";
+    process_csv(csv_path, output_path)?;
+    println!("Report generated: {}", output_path);
     Ok(())
 }
 
-fn process_csv(path: impl AsRef<Path>) -> Result<()> {
+fn process_csv(path: impl AsRef<Path>, output_path: &str) -> Result<()> {
     let file = File::open(path).context("Failed to open CSV file")?;
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
         .from_reader(file);
     
-    println!("Request_ID,Field,Missing_From");
+    // Create or truncate the output file
+    let mut output_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(output_path)
+        .context("Failed to create output file")?;
+    
+    writeln!(output_file, "Request_ID,Field,Missing_From").context("Failed to write header")?;
     
     for result in reader.records() {
         let record = result.context("Failed to read CSV record")?;
-        process_record(&record)?;
+        process_record(&record, &mut output_file)?;
     }
     
     Ok(())
 }
 
-fn process_record(record: &StringRecord) -> Result<()> {
+fn process_record(record: &StringRecord, output: &mut impl Write) -> Result<()> {
     let request_id = &record[0];
     let json1_str = &record[1];
     let json2_str = &record[2];
@@ -43,12 +54,12 @@ fn process_record(record: &StringRecord) -> Result<()> {
     
     // Report fields in json1 but missing in json2
     for field in fields1.difference(&fields2) {
-        println!("{},{},json2", request_id, field);
+        writeln!(output, "{},{},json2", request_id, field).context("Failed to write to output file")?;
     }
     
     // Report fields in json2 but missing in json1
     for field in fields2.difference(&fields1) {
-        println!("{},{},json1", request_id, field);
+        writeln!(output, "{},{},json1", request_id, field).context("Failed to write to output file")?;
     }
     
     Ok(())
