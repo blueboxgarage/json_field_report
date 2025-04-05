@@ -16,9 +16,7 @@ fn main() -> Result<()> {
 
 fn process_csv(path: impl AsRef<Path>, output_path: &str) -> Result<()> {
     let file = File::open(path).context("Failed to open CSV file")?;
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(file);
+    let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
     
     // Create or truncate the output file
     let mut output_file = OpenOptions::new()
@@ -43,10 +41,8 @@ fn process_record(record: &StringRecord, output: &mut impl Write) -> Result<()> 
     let json1_str = &record[1];
     let json2_str = &record[2];
     
-    let json1: Value = serde_json::from_str(json1_str)
-        .context("Failed to parse first JSON")?;
-    let json2: Value = serde_json::from_str(json2_str)
-        .context("Failed to parse second JSON")?;
+    let json1: Value = serde_json::from_str(json1_str).context("Failed to parse first JSON")?;
+    let json2: Value = serde_json::from_str(json2_str).context("Failed to parse second JSON")?;
     
     // Extract structure only (field paths) without considering values
     let fields1 = extract_field_paths(&json1);
